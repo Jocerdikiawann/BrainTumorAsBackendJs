@@ -1,0 +1,42 @@
+
+version: '3.8'
+
+services:
+  backend:
+    container_name: "api"
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    volumes:
+      - '.:/usr/src/app/'
+      - "/usr/src/app/node_modules"
+    depends_on:
+      - mongo
+    networks:
+      - api-networks
+  mongo:
+    container_name: db
+    image: mongo:latest
+    restart: always
+    # environment:
+    #   - MONGO_INITDB_ROOT_USERNAME=root
+    #   - MONGO_INITDB_ROOT_PASSWORD=root
+    ports:
+      - 27017:27017
+    networks:
+      - api-networks
+    volumes:
+      - "mongo-data:/data/db"
+    expose:
+      - 27017
+    # command: mongod --auth
+networks:
+  api-networks:
+    driver: bridge
+
+volumes:
+  mongo-data:
+    driver: "local"
