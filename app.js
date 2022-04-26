@@ -28,7 +28,6 @@ tf.ready().then(() => {
     app.use('/', indexRouter);
     app.use('/users', usersRouter);
     app.use('/api/v1', tumorRouter)
-
 })
 
 console.log(tf.getBackend())

@@ -1,11 +1,9 @@
 const isImage = require('is-base64')
 const base64 = require('base64-img')
-const { ResponseApi, enum_, consolog } = require('../../utils')
+const { ResponseApi, enum_, consolog, utils } = require('../../utils')
 const { tumor_repo } = require('../repository')
 const tf = require('@tensorflow/tfjs')
 const tfn = require('@tensorflow/tfjs-node')
-const cv = require('opencv4nodejs')
-const fs = require('fs')
 const Jimp = require('jimp')
 const model_json = "./tfjs_model/model.json"
 
@@ -48,33 +46,58 @@ exports.GetDetailPredictions = async (request) => {
 exports.CreatePredictions = async (request) => {
     const image_origin = request.body.image
     const INPUT_SIZE = 64
+    const NUM_OF_CHANNELS = 3;
+
+    let labels = ["non_tumor", "tumor"]
+    let result_array = []
+
     if (!isImage(image_origin, { mimeRequired: true })) {
         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", "invalid base64", {})
     }
 
     try {
         const handler = tfn.io.fileSystem(model_json)
-        const model = await tf.loadLayersModel(handler)
+        const model = await tfn.loadLayersModel(handler)
+        model.summary()
 
         base64.img(image_origin, "./public/images", Date.now(), async (err, filepath) => {
             if (err) {
                 return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", err.message, {})
             }
 
-            const img_cv = cv.imread("./public/images/1650847594357.jpg")
-            const resize = img_cv.resize(64, 64)
+            const jimp_src = await Jimp.read(`./${filepath}`)
+            jimp_src.cover(INPUT_SIZE, INPUT_SIZE, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
 
-            const inputBlob = resize.getDataAsArray()
+            let values = new Float32Array(INPUT_SIZE * INPUT_SIZE * NUM_OF_CHANNELS);
 
-            // const tensor = tf.tensor(inputBlob, [resize.rows, resize.cols, 3]).expandDims(0)
+            let i = 0
+            jimp_src.scan(0, 0, jimp_src.bitmap.width, jimp_src.bitmap.height, (x, y, idx) => {
+                const pixel = Jimp.intToRGBA(jimp_src.getPixelColor(x, y))
+                pixel.r = pixel.r / 127.0 - 1;
+                pixel.g = pixel.g / 127.0 - 1;
+                pixel.b = pixel.b / 127.0 - 1;
+                pixel.a = pixel.a / 127.0 - 1;
+                values[i * NUM_OF_CHANNELS + 0] = pixel.r;
+                values[i * NUM_OF_CHANNELS + 1] = pixel.g;
+                values[i * NUM_OF_CHANNELS + 2] = pixel.b;
+                i++;
+            })
 
-            // const result = model.predict(tensor)
+            const outShape = [64, 64, NUM_OF_CHANNELS];
 
+            let image_tensor = tfn.tensor3d(values, outShape, 'float32')
+            image_tensor = image_tensor.expandDims(0)
 
-            consolog.LogDanger(inputBlob)
+            const prediction = await model.predict(image_tensor).dataSync()
 
-
-            return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", { tes: "e" })
+            for (let i = 0; i < prediction.length; i++) {
+                const label = labels[i];
+                const probability = `${parseInt(prediction[i] * 100)}%`;
+                const data = {}
+                data[label] = probability
+                result_array.push(data)
+            }
+            return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", { prediction: result_array })
         })
     } catch (error) {
         consolog.LogDanger(error)
