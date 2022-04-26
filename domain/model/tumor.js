@@ -5,7 +5,7 @@ module.exports = (db) => {
             required: true
         },
         prediction: {
-            type: String,
+            type: [{ "non_tumor": String, "tumor": String }],
             required: true
         }
     })

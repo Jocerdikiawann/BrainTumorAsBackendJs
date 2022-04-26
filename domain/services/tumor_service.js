@@ -61,7 +61,12 @@ exports.CreatePredictions = async (request) => {
         const model = await tfn.loadLayersModel(handler)
         model.summary()
 
-        var filepath = base64.imgSync(image_origin, "./public/images", Date.now());
+        const filepath = base64.imgSync(image_origin, "./public/images", Date.now());
+
+        const filename = filepath.split("/").pop()
+
+        // const upload_image = await is3_repo.UploadImage(filename, filepath)
+        // consolog.LogDanger(upload_image)
 
         const jimp_src = await Jimp.read(`./${filepath}`)
         jimp_src.cover(INPUT_SIZE, INPUT_SIZE, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
@@ -96,15 +101,19 @@ exports.CreatePredictions = async (request) => {
             result_array.push(data)
         }
 
-        // base64.img(image_origin, "./public/images", Date.now(), async (err, filepath) => {
-        //     if (err) {
-        //         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", err.message, {})
-        //     }
+        const data_push = {
+            image: filename,
+            prediction: result_array
+        }
 
+        await tumor_repo.CreatePredictions(data_push)
 
-        // })
+        const data_response = {
+            image: `${request.get('host')}/images/${filename}`,
+            prediction: result_array
+        }
 
-        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", { prediction: result_array })
+        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", data_response)
     } catch (error) {
         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", error.message, {})
     }
