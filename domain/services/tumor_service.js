@@ -44,62 +44,68 @@ exports.GetDetailPredictions = async (request) => {
 }
 
 exports.CreatePredictions = async (request) => {
-    const image_origin = request.body.image
-    const INPUT_SIZE = 64
-    const NUM_OF_CHANNELS = 3;
-
-    let labels = ["non_tumor", "tumor"]
-    let result_array = []
-
-    if (!isImage(image_origin, { mimeRequired: true })) {
-        return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", "invalid base64", {})
-    }
-
     try {
+
+        const image_origin = request.body.image
+        const INPUT_SIZE = 64
+        const NUM_OF_CHANNELS = 3;
+
+        let labels = ["non_tumor", "tumor"]
+        let result_array = []
+
+        if (!isImage(image_origin, { mimeRequired: true })) {
+            return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", "invalid base64", {})
+        }
+
         const handler = tfn.io.fileSystem(model_json)
         const model = await tfn.loadLayersModel(handler)
         model.summary()
 
-        base64.img(image_origin, "./public/images", Date.now(), async (err, filepath) => {
-            if (err) {
-                return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", err.message, {})
-            }
+        var filepath = base64.imgSync(image_origin, "./public/images", Date.now());
 
-            const jimp_src = await Jimp.read(`./${filepath}`)
-            jimp_src.cover(INPUT_SIZE, INPUT_SIZE, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
+        const jimp_src = await Jimp.read(`./${filepath}`)
+        jimp_src.cover(INPUT_SIZE, INPUT_SIZE, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
 
-            let values = new Float32Array(INPUT_SIZE * INPUT_SIZE * NUM_OF_CHANNELS);
+        let values = new Float32Array(INPUT_SIZE * INPUT_SIZE * NUM_OF_CHANNELS);
 
-            let i = 0
-            jimp_src.scan(0, 0, jimp_src.bitmap.width, jimp_src.bitmap.height, (x, y, idx) => {
-                const pixel = Jimp.intToRGBA(jimp_src.getPixelColor(x, y))
-                pixel.r = pixel.r / 127.0 - 1;
-                pixel.g = pixel.g / 127.0 - 1;
-                pixel.b = pixel.b / 127.0 - 1;
-                pixel.a = pixel.a / 127.0 - 1;
-                values[i * NUM_OF_CHANNELS + 0] = pixel.r;
-                values[i * NUM_OF_CHANNELS + 1] = pixel.g;
-                values[i * NUM_OF_CHANNELS + 2] = pixel.b;
-                i++;
-            })
-
-            const outShape = [64, 64, NUM_OF_CHANNELS];
-
-            let image_tensor = tfn.tensor3d(values, outShape, 'float32')
-            image_tensor = image_tensor.expandDims(0)
-
-            const prediction = await model.predict(image_tensor).dataSync()
-
-            for (let i = 0; i < prediction.length; i++) {
-                const label = labels[i];
-                const probability = `${parseInt(prediction[i] * 100)}%`;
-                const data = {}
-                data[label] = probability
-                result_array.push(data)
-            }
-            return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", { prediction: result_array })
+        let i = 0
+        jimp_src.scan(0, 0, jimp_src.bitmap.width, jimp_src.bitmap.height, (x, y, idx) => {
+            const pixel = Jimp.intToRGBA(jimp_src.getPixelColor(x, y))
+            pixel.r = pixel.r / 127.0 - 1;
+            pixel.g = pixel.g / 127.0 - 1;
+            pixel.b = pixel.b / 127.0 - 1;
+            pixel.a = pixel.a / 127.0 - 1;
+            values[i * NUM_OF_CHANNELS + 0] = pixel.r;
+            values[i * NUM_OF_CHANNELS + 1] = pixel.g;
+            values[i * NUM_OF_CHANNELS + 2] = pixel.b;
+            i++;
         })
+
+        const outShape = [64, 64, NUM_OF_CHANNELS];
+
+        let image_tensor = tfn.tensor3d(values, outShape, 'float32')
+        image_tensor = image_tensor.expandDims(0)
+
+        const prediction = await model.predict(image_tensor).dataSync()
+
+        for (let i = 0; i < prediction.length; i++) {
+            const label = labels[i];
+            const probability = `${parseInt(prediction[i] * 100)}%`;
+            const data = {}
+            data[label] = probability
+            result_array.push(data)
+        }
+
+        // base64.img(image_origin, "./public/images", Date.now(), async (err, filepath) => {
+        //     if (err) {
+        //         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", err.message, {})
+        //     }
+
+
+        // })
+
+        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", { prediction: result_array })
     } catch (error) {
-        consolog.LogDanger(error)
+        return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", error.message, {})
     }
 }
