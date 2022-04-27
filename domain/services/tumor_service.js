@@ -11,7 +11,7 @@ exports.GetAllPredictions = async (request) => {
     try {
         const tumor_media = await tumor_repo.GetAllPredictions()
         const mapped_tumor_media = tumor_media.map((m) => {
-            m.image = `${request.get('host')}/${m.image}`
+            m.image = `${request.get('host')}/images/${m.image}`
             return m
         })
         return await ResponseApi(enum_.CODE_OK, "success", "data prediction has been sent", mapped_tumor_media)
