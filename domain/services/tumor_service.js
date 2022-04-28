@@ -29,15 +29,9 @@ exports.GetDetailPredictions = async (request) => {
             return await ResponseApi(enum_.CODE_NOT_FOUND, "error", "id not found", {})
         }
 
-        const image = `${request.get('host')}/${tumor.image}`
-        const data = {
-            id: id,
-            image: image,
-            prediction: tumor.prediction,
-            createdAt: tumor.createdAt,
-            updatedAt: tumor.updatedAt
-        }
-        return await ResponseApi(enum_.CODE_OK, "success", "data has been sent", data)
+        tumor.image = `${request.get('host')}/${tumor.image}`
+
+        return await ResponseApi(enum_.CODE_OK, "success", "data has been sent", tumor)
     } catch (error) {
         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", error.message, {})
     }
@@ -47,11 +41,13 @@ exports.CreatePredictions = async (request) => {
     try {
 
         const image_origin = request.body.image
+        const name = request.body.name
+
         const INPUT_SIZE = 64
         const NUM_OF_CHANNELS = 3;
 
-        let labels = ["non_tumor", "tumor"]
-        let result_array = []
+        let labels = ["non_tumor_scores", "tumor_scores"]
+        let result_data = {}
 
         if (!isImage(image_origin, { mimeRequired: true })) {
             return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", "invalid base64", {})
@@ -96,24 +92,20 @@ exports.CreatePredictions = async (request) => {
         for (let i = 0; i < prediction.length; i++) {
             const label = labels[i];
             const probability = `${parseInt(prediction[i] * 100)}%`;
-            const data = {}
-            data[label] = probability
-            result_array.push(data)
+            result_data[label] = probability
         }
 
         const data_push = {
+            name: name,
             image: filename,
-            prediction: result_array
+            prediction: result_data
         }
 
-        await tumor_repo.CreatePredictions(data_push)
+        const data_res = await tumor_repo.CreatePredictions(data_push)
 
-        const data_response = {
-            image: `${request.get('host')}/images/${filename}`,
-            prediction: result_array
-        }
+        data_res.image = `${request.get('host')}/${data_res.image}`
 
-        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", data_response)
+        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", data_res)
     } catch (error) {
         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", error.message, {})
     }

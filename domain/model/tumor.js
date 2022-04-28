@@ -1,12 +1,22 @@
 module.exports = (db) => {
     var tumor = new db.Schema({
+        name: {
+            type: String,
+            required: true
+        },
         image: {
             type: String,
             required: true
         },
-        prediction: {
-            type: [{ "non_tumor": String, "tumor": String }],
+        predictionId: {
+            type: db.Schema.Types.ObjectId,
+            ref: "predictions",
             required: true
+        }
+    }, {
+        timestamps: {
+            createdAt: 'created_at',
+            updatedAt: 'updated_at'
         }
     })
     return db.model('tumor', tumor)

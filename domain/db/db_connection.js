@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const { tumor } = require('../model')
+const { tumor, predictions } = require('../model')
 const { config_db, consolog } = require('../../utils')
 
 let db = {}
@@ -20,6 +20,7 @@ if (config_db.db.mongodb && Object.keys(config_db.db.mongodb).length > 0) {
     db[connection_name] = {}
     db[connection_name].conn = mongoose
     db[connection_name].Tumor = tumor(mongoose)
+    db[connection_name].Predictions = predictions(mongoose)
 
     exports.db = db
 } else {
