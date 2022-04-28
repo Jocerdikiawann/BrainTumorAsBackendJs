@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - 3000:3000
+      - ${PORT}:${PORT}
     volumes:
       - '.:/usr/src/app/'
       - "/usr/src/app/node_modules"
@@ -31,7 +31,7 @@ services:
     volumes:
       - "mongo-data:/data/db"
     expose:
-      - 27017
+      - ${MONGO_PORT}
     # command: mongod --auth
 networks:
   api-networks:
