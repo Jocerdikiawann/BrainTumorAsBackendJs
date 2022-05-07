@@ -46,7 +46,7 @@ exports.CreatePredictions = async (request) => {
         const INPUT_SIZE = 64
         const NUM_OF_CHANNELS = 3;
 
-        let labels = ["non_tumor_scores", "tumor_scores"]
+        let labels = ["tumor_scores", "non_tumor_scores"]
         let result_data = {}
 
         if (!isImage(image_origin, { mimeRequired: true })) {
@@ -84,28 +84,27 @@ exports.CreatePredictions = async (request) => {
 
         const outShape = [64, 64, NUM_OF_CHANNELS];
 
-        let image_tensor = tfn.tensor3d(values, outShape, 'float32')
-        image_tensor = image_tensor.expandDims(0)
+        let image_tensor = tfn.tensor(values, outShape, "float32")
+        image_tensor = tfn.expandDims(image_tensor, 0)
 
         const prediction = await model.predict(image_tensor).dataSync()
+        const argmax = Math.max(...prediction)
+        
+        result_data["tumor_scores"] = `${parseFloat(argmax) * 100}%`
 
-        for (let i = 0; i < prediction.length; i++) {
-            const label = labels[i];
-            const probability = `${parseInt(prediction[i] * 100)}%`;
-            result_data[label] = probability
-        }
+        const image = `${request.get('host')}/${filename}`
 
         const data_push = {
             name: name,
-            image: filename,
+            image: image,
             prediction: result_data
         }
 
-        const data_res = await tumor_repo.CreatePredictions(data_push)
+        // const data_res = await tumor_repo.CreatePredictions(data_push)
 
-        data_res.image = `${request.get('host')}/${data_res.image}`
+        // data_res.image = `${request.get('host')}/${data_push.image}`
 
-        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", data_res)
+        return await ResponseApi(enum_.CODE_CREATED, "success", "data has been created", data_push)
     } catch (error) {
         return await ResponseApi(enum_.CODE_BAD_REQUEST, "error", error.message, {})
     }

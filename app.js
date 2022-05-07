@@ -5,7 +5,6 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var cors = require("cors")
 const tf = require('@tensorflow/tfjs')
-require('@tensorflow/tfjs-backend-wasm')
 
 
 
@@ -15,7 +14,7 @@ var usersRouter = require('./routes/users');
 
 var app = express();
 
-tf.setBackend('wasm')
+tf.setBackend('cpu')
 tf.enableDebugMode()
 tf.ready().then(() => {
     app.use(cors())
