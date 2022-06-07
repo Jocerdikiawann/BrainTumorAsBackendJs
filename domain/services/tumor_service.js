@@ -68,8 +68,8 @@ exports.Predictions = async (request) => {
     const INPUT_SIZE = 64;
     const NUM_OF_CHANNELS = 3;
 
-    let labels = ["non_tumor_scores", "tumor_scores"];
-    let result_data = {};
+    let labels = ["non_tumor", "tumor"];
+    let result_data = [];
 
     if (!isImage(image_origin, { mimeRequired: true })) {
       return await ResponseApi(
@@ -93,21 +93,23 @@ exports.Predictions = async (request) => {
     const filename = filepath.split("/").pop();
     const buf = fs.readFileSync(`./${filepath}`);
     const tensor = tfn.node.decodeImage(buf, NUM_OF_CHANNELS);
-    let resize = tensor.resizeBilinear([64, 64]);
+    let resize = tensor.resizeBilinear([INPUT_SIZE, INPUT_SIZE]);
     resize = tf.expandDims(resize, 0);
     const prediction = await model.predict(resize).data();
-    consolog.LogDanger(prediction);
-    const result = {
-      probability: `${Math.floor(prediction[1] * 100)}%`,
-      origin_value: prediction,
-    };
+    prediction.forEach((item, index) => {
+      data = {
+        label: labels[index],
+        probability: `${Math.floor(item * 100)}%`,
+      };
+      result_data.push(data);
+    });
     model.dispose();
     resize.dispose();
     return await ResponseApi(
       enum_.CODE_CREATED,
       "success",
       "data has been created",
-      result
+      result_data
     );
   } catch (error) {
     return await ResponseApi(

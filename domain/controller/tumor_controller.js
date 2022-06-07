@@ -12,11 +12,5 @@ exports.GetDetailPredictions = async (req, res) => {
 
 exports.CreatePredictions = async (req, res) => {
   const tumor_serv = await tumor_service.Predictions(req);
-  return res.status(200).json(tumor_serv);
-};
-
-exports.CreatePredictions2 = async (req, res) => {
-  const tumor_serv = await tumor_service.CreatePredictions(req);
   return res.status(tumor_serv.code).json(tumor_serv);
 };
-
