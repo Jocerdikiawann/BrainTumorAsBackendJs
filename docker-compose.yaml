@@ -18,7 +18,7 @@ services:
     networks:
       - api-networks
   mongo:
-    container_name: db
+    container_name: db-mongo
     image: mongo:latest
     restart: always
     # environment:
